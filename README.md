@@ -1,6 +1,5 @@
 # Annona
-**Annona**
-* A digital marketplace designed to bring order to the Rutgers dining experience.
+A digital marketplace designed to bring order to the Rutgers dining experience.
 By transforming long, unformatted menus into a modular, "DoorDash-style" interface, it allows students to navigate campus food options, share custom "creations," and track nutritional goals efficiently.
 
 ---
