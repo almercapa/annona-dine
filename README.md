@@ -1,6 +1,6 @@
 # Annona
 **Annona**
-A digital marketplace designed to bring order to the Rutgers dining experience.
+* A digital marketplace designed to bring order to the Rutgers dining experience.
 By transforming long, unformatted menus into a modular, "DoorDash-style" interface, it allows students to navigate campus food options, share custom "creations," and track nutritional goals efficiently.
 
 ---
@@ -74,5 +74,3 @@ By transforming long, unformatted menus into a modular, "DoorDash-style" interfa
 3. **Verification**: Backend validates ID token signature and Rutgers email domain.
 4. **Deep Linking**: Successful login redirects back to the app via a custom URL scheme (e.g., annona://auth?token={jwt_token}).
 5. **Secure Storage**: Mobile app extracts the token and stores it in secure device storage for all API calls.
-4. [cite_start]**Deep Linking**: Successful login redirects back to the app via a custom URL scheme (e.g., annona://auth?token={jwt_token}). [cite: 466]
-5. [cite_start]**Secure Storage**: Mobile app extracts the token and stores it in secure device storage for all API calls. [cite: 467]
