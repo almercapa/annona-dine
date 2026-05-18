@@ -50,6 +50,23 @@ By transforming long, unformatted menus into a modular, "DoorDash-style" interfa
 
 ---
 
+## **Current Status**
+
+### **What's built**
+Completed a data pipeline with scrapes daily menu data from three dining halls. 
+
+### **Scraper**
+Fetches breakfast, lunch, and dinner menus for Busch, Livingston, and Neilson dining halls from the Nutrislice API
+
+**Output:** Generates {hall}_{type} JSON files containing the name, calories, and protein for every item in the menu
+
+### **In development**
+* PostgreSQL database schema and rarity tracking system
+* React Native mobile UI
+* FastAPI backend
+
+---
+
 ## **Scope**
 
 ### **In scope**
