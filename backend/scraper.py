@@ -1,5 +1,4 @@
-import requests
-import datetime
+import requests, datetime
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy import select
 from database import engine, Base
