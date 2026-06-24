@@ -32,6 +32,11 @@ def get_menu(hall: str, food_type: str, db: Annotated[Session, Depends(get_db)])
 def get_halls(db: Annotated[Session, Depends(get_db)]):
     return db.execute(select(DiningHall)).scalars().all()
 
+@app.get("/items/search")
+def get_search(name: str, db: Annotated[Session, Depends(get_db)]):
+    item = db.execute(select(Item.name, Appearance.calories, Appearance.fat, Appearance.carbs, Appearance.protein).select_from(Appearance).join(Item).where(Item.name.ilike(f"%{name}%")).distinct()).all()
+    return [dict(row._mapping) for row in item]
+
 @app.get("/items/{id}")
 def get_item(id: int, db: Annotated[Session, Depends(get_db)]):
     now = datetime.datetime.now() 
