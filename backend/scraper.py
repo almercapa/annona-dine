@@ -40,6 +40,9 @@ def scrape_menu(hall, foodType):
          return
     
     for meal in meals:
+         if meal.get("calories") is None:
+              continue
+         
          itemID = db.execute(select(Item).where(Item.name == meal.get("name"))).scalars().first()
          if itemID is None:
               new_item = Item(name=meal.get("name"))
