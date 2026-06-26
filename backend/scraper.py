@@ -52,6 +52,10 @@ def scrape_menu(hall, foodType):
               itemID = new_item
 
          hallID = db.execute(select(DiningHall).where(DiningHall.slug == hall)).scalars().first()
+
+         existing = db.execute(select(Appearance).where(Appearance.item_id == itemID.id,Appearance.hall_id == hallID.id,Appearance.date == date,Appearance.food_type == foodType)).scalars().first()
+         if existing:
+              continue
          
          new_appearance = Appearance(item_id=itemID.id, hall_id=hallID.id, date=date, food_type=foodType, calories=meal.get("calories"), protein=meal.get("protein"), fat=meal.get("fat"), carbs=meal.get("carbs"))
          db.add(new_appearance)
