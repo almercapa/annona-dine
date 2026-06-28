@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import Integer, String, Date, DateTime, ForeignKey, Float
+from sqlalchemy import Integer, String, Date, DateTime, ForeignKey, Float, func
 from database import Base
 from datetime import datetime
 
@@ -27,3 +27,12 @@ class Appearance(Base):
     protein: Mapped[float] = mapped_column(Float)
     fat: Mapped[float] = mapped_column(Float, nullable=True)
     carbs: Mapped[float] = mapped_column(Float, nullable=True)
+
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    first_name: Mapped[str] = mapped_column(String(50), nullable=False)
+    last_name: Mapped[str] = mapped_column(String(50), nullable=False)
+    email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    profile_picture: Mapped[str] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

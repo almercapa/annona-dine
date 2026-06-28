@@ -1,6 +1,6 @@
 from database import Base, engine
 from fastapi import FastAPI, Depends
-from models import DiningHall, Item, Appearance
+from models import DiningHall, Item, Appearance, User
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy import select
 from typing import Annotated
