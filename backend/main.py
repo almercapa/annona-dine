@@ -1,27 +1,17 @@
-from database import Base, engine
-from config import CLIENT_ID, CLIENT_SECRET, SECRET_KEY, REDIRECT_URI, ALGORITHM, JWT_ALGORITHM
-from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.responses import RedirectResponse
-from models import DiningHall, Item, Appearance, User
-from sqlalchemy.orm import Session, sessionmaker
+import datetime
+from fastapi import FastAPI, Depends
+from sqlalchemy.orm import Session
 from sqlalchemy import select
 from typing import Annotated
+from database import Base, engine, get_db
+from models import DiningHall, Item, Appearance
 from schemas import HallResponse, ItemDetailResponse, MenuResponse, SearchItemResponse
-import datetime
-import httpx
-from jose import jwt
-import jwt as pyjwt
+from auth import router
 
 app = FastAPI() # Creates app instance
+app.include_router(router)
 Base.metadata.create_all(bind=engine) # Creates all tables on startup
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 @app.get("/menu", response_model=list[MenuResponse])
 def get_menu(hall: str, food_type: str, db: Annotated[Session, Depends(get_db)]):
@@ -41,7 +31,7 @@ def get_menu(hall: str, food_type: str, db: Annotated[Session, Depends(get_db)])
     # Returns a list of dictionaries of every queried row in appearance
 
 @app.get("/halls", response_model=list[HallResponse])
-def get_halls(db: Annotated[Session, Depends(get_db)]):
+def get_halls(db: Annotated[Session, Depends(get_db)], ):
     # Simply returns every dining hall
     return db.execute(select(DiningHall)).scalars().all()
 
@@ -74,37 +64,3 @@ def get_item(id: int, db: Annotated[Session, Depends(get_db)]):
     )
     item = db.execute(query).all()
     return item
-
-@app.get("/auth/google")
-def get_auth():
-    return RedirectResponse(url=f"https://accounts.google.com/o/oauth2/auth?scope=email%20profile&response_type=code&client_id={CLIENT_ID}&redirect_uri={REDIRECT_URI}")
-
-@app.get("/auth/google/callback")
-def get_callback(code:str,db: Annotated[Session, Depends(get_db)]):
-    res = httpx.post(url="https://oauth2.googleapis.com/token", data={"client_id":CLIENT_ID, "client_secret":CLIENT_SECRET,"code":code,"redirect_uri":REDIRECT_URI,"grant_type":"authorization_code"})
-    token_data = res.json()
-    id = token_data["id_token"]
-    user_info=jwt.decode(id,"",[ALGORITHM],options={"verify_signature": False, "verify_at_hash": False},audience=CLIENT_ID)
-    if user_info["hd"] != "scarletmail.rutgers.edu":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail="Must use a Rutgers ScarletMail account"
-        )
-    query = (
-        select(User)
-        .where(User.email==user_info["email"])
-    )
-    user_check = db.execute(query).scalars().first()
-    if not user_check:
-        new_user = User(first_name=user_info["given_name"],last_name=user_info["family_name"],email=user_info["email"],profile_picture=user_info["picture"])
-        db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
-    
-    payload = {
-        "sub": user_info["email"],
-        "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=30)
-    }
-    encoded = pyjwt.encode(payload, SECRET_KEY, algorithm=JWT_ALGORITHM)
-
-    return encoded
