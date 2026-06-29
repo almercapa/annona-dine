@@ -1,12 +1,16 @@
 from database import Base, engine
-from fastapi import FastAPI, Depends
+from config import CLIENT_ID, CLIENT_SECRET, SECRET_KEY, REDIRECT_URI, ALGORITHM, JWT_ALGORITHM
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.responses import RedirectResponse
 from models import DiningHall, Item, Appearance, User
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy import select
 from typing import Annotated
 from schemas import HallResponse, ItemDetailResponse, MenuResponse, SearchItemResponse
 import datetime
-
+import httpx
+from jose import jwt
+import jwt as pyjwt
 
 app = FastAPI() # Creates app instance
 Base.metadata.create_all(bind=engine) # Creates all tables on startup
@@ -70,3 +74,37 @@ def get_item(id: int, db: Annotated[Session, Depends(get_db)]):
     )
     item = db.execute(query).all()
     return item
+
+@app.get("/auth/google")
+def get_auth():
+    return RedirectResponse(url=f"https://accounts.google.com/o/oauth2/auth?scope=email%20profile&response_type=code&client_id={CLIENT_ID}&redirect_uri={REDIRECT_URI}")
+
+@app.get("/auth/google/callback")
+def get_callback(code:str,db: Annotated[Session, Depends(get_db)]):
+    res = httpx.post(url="https://oauth2.googleapis.com/token", data={"client_id":CLIENT_ID, "client_secret":CLIENT_SECRET,"code":code,"redirect_uri":REDIRECT_URI,"grant_type":"authorization_code"})
+    token_data = res.json()
+    id = token_data["id_token"]
+    user_info=jwt.decode(id,"",[ALGORITHM],options={"verify_signature": False, "verify_at_hash": False},audience=CLIENT_ID)
+    if user_info["hd"] != "scarletmail.rutgers.edu":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Must use a Rutgers ScarletMail account"
+        )
+    query = (
+        select(User)
+        .where(User.email==user_info["email"])
+    )
+    user_check = db.execute(query).scalars().first()
+    if not user_check:
+        new_user = User(first_name=user_info["given_name"],last_name=user_info["family_name"],email=user_info["email"],profile_picture=user_info["picture"])
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+    
+    payload = {
+        "sub": user_info["email"],
+        "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=30)
+    }
+    encoded = pyjwt.encode(payload, SECRET_KEY, algorithm=JWT_ALGORITHM)
+
+    return encoded
