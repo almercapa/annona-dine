@@ -1,21 +1,16 @@
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
-import datetime
+from pydantic import BaseModel, ConfigDict # used to configure schemas
+from typing import Optional # used to define optional fields
+import datetime # used to find the current date
 
 class BaseSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True) # allows Pydantic schemas to read from SQLAlchemy model objects
 
-class HallResponse(BaseSchema):
+class HallResponse(BaseSchema): # used in /halls route to define each individual hall
     id: int
     name: str
     slug: str
 
-class ItemResponse(BaseSchema):
-    id: int
-    rarity: Optional[str]
-    last_seen: Optional[str]
-
-class ItemDetailResponse(BaseSchema):
+class ItemDetailResponse(BaseSchema): # used in /items/{id} to define each item specifically
     name: str
     rarity: Optional[str]
     last_seen: Optional[datetime.date]
@@ -25,7 +20,7 @@ class ItemDetailResponse(BaseSchema):
     carbs: Optional[float]
     hall_name: str
 
-class MenuResponse(BaseSchema):
+class MenuResponse(BaseSchema): # used in /menu to define all items in the current menu
     item_id: int
     calories: float
     protein: float
@@ -33,7 +28,7 @@ class MenuResponse(BaseSchema):
     carbs: Optional[float]
     name: str
 
-class SearchItemResponse(BaseSchema):
+class SearchItemResponse(BaseSchema): # used in /items/search to define a specific searched item 
     name: str
     calories: float
     protein: float
