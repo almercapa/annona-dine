@@ -1,22 +1,26 @@
-import datetime
-from fastapi import FastAPI, Depends
-from sqlalchemy.orm import Session
-from sqlalchemy import select
-from typing import Annotated
+import datetime # used to find the date
+from fastapi import FastAPI, Depends # used to initialize FastAPI and dependencies
+from sqlalchemy.orm import Session # used for type hinting
+from sqlalchemy import select # used in queries
+from typing import Annotated # used as database parameter
+# all pulling objects/functions from other classes
 from database import Base, engine, get_db
 from models import DiningHall, Item, Appearance
 from schemas import HallResponse, ItemDetailResponse, MenuResponse, SearchItemResponse
 from auth import router
 
 app = FastAPI() # Creates app instance
-app.include_router(router)
+app.include_router(router) # Informs FastAPI of the routes in auth.py
 Base.metadata.create_all(bind=engine) # Creates all tables on startup
 
+def get_date():
+    now = datetime.datetime.now()
+    return now.strftime("%Y-%m-%d")
 
+#  Retrieving menu from database, response_model represents a list of rows in the database
 @app.get("/menu", response_model=list[MenuResponse])
 def get_menu(hall: str, food_type: str, db: Annotated[Session, Depends(get_db)]):
-    now = datetime.datetime.now() 
-    date = now.strftime("%Y-%m-%d") # Finds the current date!
+    date = get_date() # Finds the current date!
     hallID = db.execute(select(DiningHall).where(DiningHall.slug == hall)).scalars().first() # Took a while to figure out, but essentially queries the first dining hall in database that matches our hall variable
     query = (
         select(Appearance.item_id, Appearance.calories, Appearance.protein, Appearance.fat, Appearance.carbs, Appearance.food_type, Item.name)
@@ -31,7 +35,7 @@ def get_menu(hall: str, food_type: str, db: Annotated[Session, Depends(get_db)])
     # Returns a list of dictionaries of every queried row in appearance
 
 @app.get("/halls", response_model=list[HallResponse])
-def get_halls(db: Annotated[Session, Depends(get_db)], ):
+def get_halls(db: Annotated[Session, Depends(get_db)]):
     # Simply returns every dining hall
     return db.execute(select(DiningHall)).scalars().all()
 
@@ -51,8 +55,7 @@ def get_search(name: str, db: Annotated[Session, Depends(get_db)]):
 
 @app.get("/items/{id}", response_model=list[ItemDetailResponse])
 def get_item(id: int, db: Annotated[Session, Depends(get_db)]):
-    now = datetime.datetime.now() 
-    date = now.strftime("%Y-%m-%d") # Finds the current date!
+    date = get_date()
     # Finds all items in Appearance database that match the ID provided and current date
     query = (
         select(Item.name, Item.rarity, Item.last_seen, Appearance.calories, Appearance.fat, Appearance.carbs, Appearance.protein, DiningHall.name.label("hall_name"))
