@@ -34,3 +34,17 @@ class SearchItemResponse(BaseSchema): # used in /items/search to define a specif
     protein: float
     fat: Optional[float]
     carbs: Optional[float]
+
+class UserResponse(BaseSchema):
+    id: int
+    first_name: str
+    last_name: str
+    email: str
+    profile_picture: Optional[str]
+
+class RatingRequest(BaseModel):
+    score: int
+
+class RatingResponse(BaseSchema):
+    score: float
+    count: int

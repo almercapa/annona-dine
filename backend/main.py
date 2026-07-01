@@ -1,13 +1,13 @@
 import datetime # used to find the date
-from fastapi import FastAPI, Depends # used to initialize FastAPI and dependencies
+from fastapi import FastAPI, Depends, HTTPException, status # used to initialize FastAPI and dependencies
 from sqlalchemy.orm import Session # used for type hinting
-from sqlalchemy import select # used in queries
+from sqlalchemy import select, func # used in queries
 from typing import Annotated # used as database parameter
 # all pulling objects/functions from other classes
 from database import Base, engine, get_db
-from models import DiningHall, Item, Appearance
-from schemas import HallResponse, ItemDetailResponse, MenuResponse, SearchItemResponse
-from auth import router
+from models import DiningHall, Item, Appearance, User, Rating
+from schemas import HallResponse, ItemDetailResponse, MenuResponse, SearchItemResponse, UserResponse, RatingRequest, RatingResponse
+from auth import router, get_current_user
 
 app = FastAPI() # Creates app instance
 app.include_router(router) # Informs FastAPI of the routes in auth.py
@@ -53,6 +53,20 @@ def get_search(name: str, db: Annotated[Session, Depends(get_db)]):
     return item
     # Future addition: Add all available dining halls to item ("Available in Busch Dining Hall, Livingston Dining Hall, ...")
 
+@app.get("/users/me", response_model=UserResponse)
+def get_user(user: Annotated[User, Depends(get_current_user)]):
+    return user
+
+
+@app.get("/items/{id}/rating", response_model=RatingResponse)
+def get_rating(id: int, db: Annotated[Session, Depends(get_db)]):
+    query = (
+        select(func.avg(Rating.score), func.count(Rating.score))
+        .where(Rating.item_id==id)
+    )
+    res = db.execute(query).first()
+    return {"score": res[0], "count": res[1]}
+
 @app.get("/items/{id}", response_model=list[ItemDetailResponse])
 def get_item(id: int, db: Annotated[Session, Depends(get_db)]):
     date = get_date()
@@ -67,3 +81,30 @@ def get_item(id: int, db: Annotated[Session, Depends(get_db)]):
     )
     item = db.execute(query).all()
     return item
+
+@app.post("/items/{id}/rate")
+def rate_item(id: int, rating: RatingRequest, db: Annotated[Session, Depends(get_db)], user: Annotated[User, Depends(get_current_user)]):
+    query = (
+        select(Rating)
+        .where(Rating.item_id==id)
+        .where(Rating.user_id==user.id)
+    )
+    rate_check = db.execute(query).scalars().first()
+
+    if not rate_check:
+        new_rating = Rating(user_id=user.id, item_id=id, score=rating.score)
+        db.add(new_rating)
+        db.commit()
+        db.refresh(new_rating)
+        return {"message": "Rating submitted successfully"}
+    else:
+        update_check = (datetime.datetime.now() - rate_check.updated_at)
+        if update_check.days >= 120:
+            rate_check.score = rating.score
+            db.commit()
+            return {"message": "Rating updated successfully"}
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Must wait at least 4 months before rerating"
+            )

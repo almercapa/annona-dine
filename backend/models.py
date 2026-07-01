@@ -36,3 +36,11 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     profile_picture: Mapped[str] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+class Rating(Base):
+    __tablename__ = "ratings"
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), primary_key=True)
+    item_id: Mapped[int] = mapped_column(ForeignKey('items.id'), primary_key=True)
+    score: Mapped[int] = mapped_column(Integer())
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
