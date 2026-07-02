@@ -1,12 +1,12 @@
 import datetime # used to find the date
 from fastapi import FastAPI, Depends, HTTPException, status # used to initialize FastAPI and dependencies
 from sqlalchemy.orm import Session # used for type hinting
-from sqlalchemy import select, func # used in queries
+from sqlalchemy import select, func, and_ # used in queries
 from typing import Annotated # used as database parameter
 # all pulling objects/functions from other classes
 from database import Base, engine, get_db
-from models import DiningHall, Item, Appearance, User, Rating
-from schemas import HallResponse, ItemDetailResponse, MenuResponse, SearchItemResponse, UserResponse, RatingRequest, RatingResponse
+from models import DiningHall, Item, Appearance, User, Rating, Pin
+from schemas import HallResponse, ItemDetailResponse, MenuResponse, SearchItemResponse, UserResponse, RatingRequest, RatingResponse, PinResponse
 from auth import router, get_current_user
 
 app = FastAPI() # Creates app instance
@@ -53,19 +53,19 @@ def get_search(name: str, db: Annotated[Session, Depends(get_db)]):
     return item
     # Future addition: Add all available dining halls to item ("Available in Busch Dining Hall, Livingston Dining Hall, ...")
 
-@app.get("/users/me", response_model=UserResponse)
+@app.get("/users/me", response_model=UserResponse) # Gets your profile
 def get_user(user: Annotated[User, Depends(get_current_user)]):
     return user
 
 
-@app.get("/items/{id}/rating", response_model=RatingResponse)
+@app.get("/items/{id}/rating", response_model=RatingResponse) 
 def get_rating(id: int, db: Annotated[Session, Depends(get_db)]):
-    query = (
-        select(func.avg(Rating.score), func.count(Rating.score))
-        .where(Rating.item_id==id)
+    query = ( 
+        select(func.avg(Rating.score), func.count(Rating.score)) # Queries an average and total score using the Rating object
+        .where(Rating.item_id==id) # Filters by ID
     )
     res = db.execute(query).first()
-    return {"score": res[0], "count": res[1]}
+    return {"score": res[0], "count": res[1]} # Returns as dictionary
 
 @app.get("/items/{id}", response_model=list[ItemDetailResponse])
 def get_item(id: int, db: Annotated[Session, Depends(get_db)]):
@@ -84,27 +84,106 @@ def get_item(id: int, db: Annotated[Session, Depends(get_db)]):
 
 @app.post("/items/{id}/rate")
 def rate_item(id: int, rating: RatingRequest, db: Annotated[Session, Depends(get_db)], user: Annotated[User, Depends(get_current_user)]):
-    query = (
+    query = ( # Queries Rating object by item and user ID
         select(Rating)
         .where(Rating.item_id==id)
         .where(Rating.user_id==user.id)
     )
-    rate_check = db.execute(query).scalars().first()
+    rate_check = db.execute(query).scalars().first() # Grabs the first row that matches
 
-    if not rate_check:
+    if not rate_check: # If no row exists add it to database
         new_rating = Rating(user_id=user.id, item_id=id, score=rating.score)
         db.add(new_rating)
         db.commit()
         db.refresh(new_rating)
         return {"message": "Rating submitted successfully"}
     else:
-        update_check = (datetime.datetime.now() - rate_check.updated_at)
+        update_check = (datetime.datetime.now() - rate_check.updated_at) # Check when the last update was
         if update_check.days >= 120:
-            rate_check.score = rating.score
+            rate_check.score = rating.score # Update score if matches
             db.commit()
             return {"message": "Rating updated successfully"}
         else:
-            raise HTTPException(
+            raise HTTPException( # Raise error if not
                 status_code=status.HTTP_403_FORBIDDEN, 
                 detail="Must wait at least 4 months before rerating"
             )
+
+@app.get("/users/me/pins", response_model=list[PinResponse])
+def get_pin(db: Annotated[Session, Depends(get_db)], user: Annotated[User, Depends(get_current_user)]):
+    date = get_date()
+    query = (
+        select(Pin.item_id, Item.name, Item.rarity, Item.last_seen, Appearance.hall_id, DiningHall.name.label("hall_name"))
+        .select_from(Pin)
+        .join(Item, Item.id == Pin.item_id)
+        .outerjoin(Appearance, and_(Appearance.item_id == Item.id, Appearance.date == date))
+        .outerjoin(DiningHall, DiningHall.id == Appearance.hall_id)
+        .where(Pin.user_id == user.id)
+    )
+    pins = db.execute(query).all()
+    pinList = {}
+    for pin in pins:
+        if pin.item_id not in pinList:
+            pinList[pin.item_id] = {
+                "item_id": pin.item_id,
+                "name": pin.name,
+                "rarity": pin.rarity,
+                "last_seen": pin.last_seen,
+                "available_today": []
+            }
+        if pin.hall_id is not None:
+            pinList[pin.item_id]["available_today"].append(pin.hall_name)
+
+    return pinList.values()
+
+@app.post("/items/{id}/pin")
+def pin_item(id: int, db: Annotated[Session, Depends(get_db)], user: Annotated[User, Depends(get_current_user)]):
+    query = (
+        select(func.count(Pin.item_id))
+        .where(Pin.user_id==user.id)
+    )
+    count = db.execute(query).scalar()
+
+    if count > 3:
+        raise HTTPException( # Raise error if not
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Maximum pins reached"
+        )
+    
+    query = ( # Queries Rating object by item and user ID
+        select(Pin)
+        .where(Pin.item_id==id)
+        .where(Pin.user_id==user.id)
+    )
+    pin_check = db.execute(query).scalars().first() # Grabs the first row that matches
+
+    if not pin_check: # If no row exists add it to database
+        new_pin = Pin(user_id=user.id, item_id=id)
+        db.add(new_pin)
+        db.commit()
+        db.refresh(new_pin)
+        return {"message": "Item pinned successfully"}
+    else:
+        raise HTTPException( # Raise error if not
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Item already pinned"
+        )
+    
+@app.delete("/items/{id}/pin")
+def delete_pin(id: int, db: Annotated[Session, Depends(get_db)], user: Annotated[User, Depends(get_current_user)]):
+    query = ( # Queries Rating object by item and user ID
+        select(Pin)
+        .where(Pin.item_id==id)
+        .where(Pin.user_id==user.id)
+    )
+    pin_check = db.execute(query).scalars().first() # Grabs the first row that matches
+
+    if pin_check: # If no row exists add it to database
+        db.delete(pin_check)
+        db.commit()
+        return {"message": "Item removed successfully"}
+    else:
+        raise HTTPException( # Raise error if not
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Item not currently pinned"
+        )

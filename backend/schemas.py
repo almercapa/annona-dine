@@ -48,3 +48,10 @@ class RatingRequest(BaseModel):
 class RatingResponse(BaseSchema):
     score: float
     count: int
+
+class PinResponse(BaseSchema):
+    item_id: int
+    name: str
+    rarity: Optional[str]
+    last_seen: Optional[datetime.date]
+    available_today: list[str]

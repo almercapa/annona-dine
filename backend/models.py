@@ -44,3 +44,9 @@ class Rating(Base):
     score: Mapped[int] = mapped_column(Integer())
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+class Pin(Base):
+    __tablename__ = "pins"
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), primary_key=True)
+    item_id: Mapped[int] = mapped_column(ForeignKey('items.id'), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
