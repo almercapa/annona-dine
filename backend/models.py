@@ -23,6 +23,7 @@ class Appearance(Base):
     hall_id: Mapped[int] = mapped_column(ForeignKey('dining_halls.id'))
     date: Mapped[datetime.date] = mapped_column(Date)
     food_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    food_station: Mapped[str] = mapped_column(String, nullable=True)
     calories: Mapped[float] = mapped_column(Float)
     protein: Mapped[float] = mapped_column(Float)
     fat: Mapped[float] = mapped_column(Float, nullable=True)

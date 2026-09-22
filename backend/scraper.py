@@ -24,16 +24,21 @@ def scrape_menu(hall, foodType):
     date = now.strftime("%Y-%m-%d")
     for day in data['days']: # Runs through each day of the week
          if day['date'] == date: # Checks if the date is today
+               station_name=None
                for item in day['menu_items']: # Runs through every possible item in the menu
-                    if not item['is_station_header'] and item['food'] is not None: # Checks if item isn't the generic category name (i.e. Salad Bar, Rotisserie, Asian Station)
-                        meal = {
-                            "name": item['food']['name'],
-                            "calories": item['food']['rounded_nutrition_info']['calories'],
-                            "protein": item['food']['rounded_nutrition_info']['g_protein'],
-                            "fat": item['food']['rounded_nutrition_info']['g_fat'],
-                            "carbs": item['food']['rounded_nutrition_info']['g_carbs'],
-                        }
-                        meals.append(meal)
+                    if item['is_station_header']:
+                         station_name=item['text']
+                    else:
+                         if item['food'] is not None:
+                              meal = {
+                                   "name": item['food']['name'],
+                                   "food_station": station_name,
+                                   "calories": item['food']['rounded_nutrition_info']['calories'],
+                                   "protein": item['food']['rounded_nutrition_info']['g_protein'],
+                                   "fat": item['food']['rounded_nutrition_info']['g_fat'],
+                                   "carbs": item['food']['rounded_nutrition_info']['g_carbs'],
+                              }
+                              meals.append(meal)
                # adds all food details to an object meal and then appends to array
     
     if not meals: # if no output print error message
@@ -58,7 +63,7 @@ def scrape_menu(hall, foodType):
          if existing: # skips if duplicate exists; scraper was run more than once
               continue
          
-         new_appearance = Appearance(item_id=itemID.id, hall_id=hallID.id, date=date, food_type=foodType, calories=meal.get("calories"), protein=meal.get("protein"), fat=meal.get("fat"), carbs=meal.get("carbs")) # adds new appearance to database otherwise
+         new_appearance = Appearance(item_id=itemID.id, hall_id=hallID.id, date=date, food_type=foodType, food_station=meal.get('food_station'), calories=meal.get("calories"), protein=meal.get("protein"), fat=meal.get("fat"), carbs=meal.get("carbs")) # adds new appearance to database otherwise
          db.add(new_appearance)
          db.commit()
 
